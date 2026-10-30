@@ -469,7 +469,8 @@ local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
 			i = i + 1
-			local f, ceiling = caves.column(sea, n_floor[i], n_ceiling[i], n_open[i],
+			local open = caves.open(level, x, z, n_open[i])
+			local f, ceiling = caves.column(sea, n_floor[i], n_ceiling[i], open,
 				n_basin[i], n_pillar[i])
 			floors[i], ceilings[i] = f or false, ceiling or false
 			reserved[i] = false
@@ -484,7 +485,7 @@ local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 				end
 			end
 			tops[i] = top or false
-			if f or caves.near(n_open[i]) then
+			if f or caves.near(open) then
 				local vi = area:index(x, y0, z)
 				for y = y0, y1 do
 					local cid = data[vi]
@@ -552,8 +553,10 @@ core.register_on_generated(function(minp, maxp, blockseed)
 		return
 	end
 	local todo
-	for _, level in ipairs(caves.levels) do
-		if level.ymax >= minp.y and level.ymin <= maxp.y then
+	for _, level in ipairs(caves.get_levels()) do
+		if level.ymax >= minp.y and level.ymin <= maxp.y
+				and level.x + level.radius >= minp.x and level.x - level.radius <= maxp.x
+				and level.z + level.radius >= minp.z and level.z - level.radius <= maxp.z then
 			todo = todo or {}
 			todo[#todo + 1] = level
 		end

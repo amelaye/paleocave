@@ -21,3 +21,7 @@ Tyrannosaurus Cave Painting=
 Triceratops Cave Painting=
 Brachiosaurus Cave Painting=
 Mosasaurus Cave Painting=
+Show the nearest primordial cavern=
+You must be in game to use this command.=
+No primordial cavern found nearby.=
+Nearest primordial cavern: @1=

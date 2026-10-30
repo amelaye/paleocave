@@ -9,10 +9,10 @@ Entre **-2000 et -5000**, le sous-sol abrite des cavernes géantes éclairées p
 3. Facultatif mais conseillé : **moreblocks**. Les ruines utilisent alors ses quarts de dalle, panneaux et micro-blocs pour des murs plus irréguliers, et ses formes s'ajoutent au calcaire, au bloc d'os et aux rondins de métaséquoia (scie circulaire). Sans moreblocks, les escaliers et dalles du mod `stairs` prennent le relais.
 4. Activer le mod pour le monde.
 
-Les cavernes n'apparaissent que dans les zones **pas encore générées**. Un monde neuf est le plus simple. Pour aller voir : `/teleport 0 -2110 0` (créatif conseillé).
+Les cavernes n'apparaissent que dans les zones **pas encore générées**. Un monde neuf est le plus simple. Pour aller voir : `/paleocave` (privilège `teleport`) donne les coordonnées d'un sol hors de l'eau dans la caverne la plus proche, même très loin. Ensuite `/teleport <x> <y> <z>` (créatif conseillé).
 
 ## Contenu
-- **Cavernes** : 15 niveaux empilés tous les 200 nœuds environ, de -2120 à -4894. Chacun a son sol vallonné, son plafond (souvent 15 à 40 nœuds au-dessus du sol), ses piliers et ses **mers souterraines** (jusqu'à une quarantaine de nœuds de profondeur). Le mod fonctionne avec tous les générateurs de carte qui remplissent le sous-sol de pierre, sauf `singlenode`.
+- **Cavernes** : **5 dans tout le monde**, chacune large d'environ 800 nœuds (rayon 400) et à sa propre profondeur entre -2000 et -5000. Elles sont loin les unes des autres et toujours dans la carte, de -10000 à 10000 en x et en z. Leur position est choisie à partir de la graine du monde, puis enregistrée avec le monde. Chacune a son sol vallonné, son plafond (souvent 15 à 40 nœuds au-dessus du sol), ses piliers et ses **mers souterraines** (jusqu'à une quarantaine de nœuds de profondeur). Le mod fonctionne avec tous les générateurs de carte qui remplissent le sous-sol de pierre, sauf `singlenode`.
 - **Calcaire** (+ briques, escaliers, dalles, muret). Les minerais et les blocs fossiles de PaleoTest restent visibles dans les parois.
 - **Ambre** (lumière 13) : grappes au plafond, cristaux au sol, inclusions dans les parois, fond des mers et flèches qui sortent de l'eau. C'est aussi une source de chaleur pour faire éclore les œufs de PaleoTest.
 - **Ambre avec moustique** (1 ambre sur 12) : il donne un *moustique dans l'ambre*. Passé dans l'**analyseur de fossiles** de PaleoTest, il rend de l'ADN de dinosaure, de ptérosaure ou de reptile marin (7 fois sur 10). L'ADN passe ensuite au cultivateur pour obtenir l'œuf ou le sac embryonnaire.
@@ -47,6 +47,7 @@ Les cavernes n'apparaissent que dans les zones **pas encore générées**. Un mo
 | `paleocave_skeletons` | `true` | génère les squelettes de dinosaures et de reptiles marins |
 
 ## Limites connues
+- Dans un monde où la couche -2000 à -5000 a déjà été générée avec une ancienne version du mod (cavernes partout), ces cavernes restent : seules les nouvelles zones suivent la règle des 5 cavernes.
 - Un autre mod qui génère des grottes entre -2000 et -5000 peut se superposer aux cavernes.
 - Les ruines et les squelettes, comme les cavernes, n'apparaissent que dans les zones générées après l'installation (ou la mise à jour) du mod.
 - Les créatures sont celles de PaleoTest : leur comportement (faim, attaques, sommeil) vient de ce mod.
@@ -55,3 +56,9 @@ Les cavernes n'apparaissent que dans les zones **pas encore générées**. Un mo
 ## Licences
 - Code : GPL-3.0-or-later, comme PaleoTest dont il dépend.
 - Textures `textures/paleocave_*.png` (bloc d'os compris) : CC BY-SA 4.0, amelaye. Elles se combinent avec `default_dirt.png` de Minetest Game (CC BY-SA 3.0).
+- Sons `sounds/paleocave_jungle*.ogg` : CC0 1.0 (domaine public), aperçus OGG haute qualité tirés de Freesound :
+  - `paleocave_jungle.1.ogg` : *Jungle, Tropical birds and insects*, myrinvp, https://freesound.org/s/423711/
+  - `paleocave_jungle.2.ogg` : *Peruvian Amazon birds frogs daytime*, nonamethefish, https://freesound.org/s/653743/
+  - `paleocave_jungle.3.ogg` : *Bako National Park, Borneo Island, Rain Forest Ambience daytime*, gladkiy, https://freesound.org/s/333225/
+  - `paleocave_jungle_swamp.ogg` : *Frogs croaking & crickets at night in jungle swamp Africa*, mycompasstv, https://freesound.org/s/462889/
+  - `paleocave_jungle_waterfall.ogg` : *Thailand Phangan Jungle Waterfall 1*, Archos, https://freesound.org/s/468242/

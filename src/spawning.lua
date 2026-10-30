@@ -149,7 +149,7 @@ end
 local RUIN_NODES = {"paleocave:limestone_brick"}
 
 local function find_spot(player_pos)
-	local level = caves.level_at(player_pos.y)
+	local level = caves.level_at(player_pos)
 	if not level then
 		return nil
 	end
