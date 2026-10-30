@@ -2,7 +2,7 @@
 -- (see mapgen.lua), entirely inside the mapchunk:
 -- * ruins of primordial houses, after the caveman houses of Alex's Caves:
 --   limestone walls broken down unevenly, sometimes an upper story of
---   metasequoia timber, cave paintings and amber lamps inside, a pile of
+--   metasequoia timber, cave paintings and ambersol lamps inside, a pile of
 --   bones, plants growing through the floor and a chest left upstairs;
 -- * dinosaur skeletons of bone blocks lying half buried on the floors, and
 --   skeletons of marine reptiles on the sea floors.
@@ -51,7 +51,7 @@ local function init()
 	c.dirt = id("default:dirt")
 	c.gravel = id("default:gravel") or c.dirt
 	c.water = id("default:water_source")
-	c.amber = id("paleocave:amber")
+	c.ambersol = id("paleocave:ambersol")
 	c.fossil = id("paleotest:fossil_block")
 	c.skull = id("bones:bones")
 	c.chest = id("default:chest")
@@ -360,7 +360,7 @@ local function against_wall(b, h, ring, y, rng)
 	end
 end
 
--- Whether a wall node can hold a painting or be replaced by an amber lamp.
+-- Whether a wall node can hold a painting or be replaced by an ambersol lamp.
 local function plain_wall(cid)
 	return cid == m.brick.full or cid == m.limestone.full or cid == m.planks.full
 end
@@ -497,7 +497,7 @@ local function build_house(b, h)
 		floor_y = 5
 	end
 
-	-- inside: paintings, amber lamps, a pile of bones, plants, the chest
+	-- inside: paintings, ambersol lamps, a pile of bones, plants, the chest
 	for _, y in ipairs(h.stories == 2 and {2, 7} or {2}) do
 		for _ = 1, rng:next(1, 3) do
 			local x, z, dx, dz = against_wall(b, h, ring, y, rng)
@@ -507,7 +507,7 @@ local function build_house(b, h)
 		end
 		local x, z, dx, dz = against_wall(b, h, ring, y + 1, rng)
 		if x and plain_wall(get(b, x + dx, y0 + y + 1, z + dz)) then
-			put(b, x + dx, y0 + y + 1, z + dz, c.amber)
+			put(b, x + dx, y0 + y + 1, z + dz, c.ambersol)
 		end
 	end
 	local x, z = against_wall(b, h, ring, 1, rng)
@@ -938,7 +938,6 @@ local LOOT = {
 	{"paleocave:amber", 1, 3, 40},
 	{"default:sword_stone", 1, 1, 25},
 	{"paleotest:fossil", 1, 2, 30},
-	{"paleocave:mosquito_in_amber", 1, 1, 20},
 	{"paleocave:tree_star", 1, 3, 25},
 	{"paleotest:seeds_cycad", 1, 2, 15},
 }

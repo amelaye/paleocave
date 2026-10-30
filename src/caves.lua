@@ -6,11 +6,11 @@ local caves = {
 	BOTTOM = -5000,
 	-- deepest floor and highest ceiling of a level, relative to its sea level
 	DEPTH = 50,
-	HEIGHT = 52,
+	HEIGHT = 80,
 	-- at most this many caverns in the world, each one a disc of this radius,
 	-- inside the map (-MAP_LIMIT to MAP_LIMIT in x and z)
 	COUNT = 5,
-	RADIUS = 400,
+	RADIUS = 250,
 	MAP_LIMIT = 10000,
 }
 paleocave.caves = caves
@@ -34,7 +34,6 @@ caves.noises = {
 	ceiling = noise(61002, 160, 3, 0.55),
 	open = noise(61003, 256, 3, 0.6),
 	basin = noise(61004, 192, 2, 0.5),
-	pillar = noise(61005, 14, 2, 0.5),
 	flora = noise(61006, 48, 2, 0.5),
 }
 
@@ -52,7 +51,7 @@ end
 -- Cells with floor < y <= ceiling are hollow; the hollow cells at or below sea
 -- level hold water. Cave edges close above the sea, so water never touches air
 -- from the side.
-function caves.column(sea, n_floor, n_ceiling, n_open, n_basin, n_pillar)
+function caves.column(sea, n_floor, n_ceiling, n_open, n_basin)
 	-- a narrow transition gives steep cave walls
 	local open = smoothstep(-0.1, 0.05, n_open)
 	if open == 0 then
@@ -60,13 +59,63 @@ function caves.column(sea, n_floor, n_ceiling, n_open, n_basin, n_pillar)
 	end
 	local mid = sea + 10
 	local floor = sea + 6 + 9 * n_floor - 34 * smoothstep(0.15, 0.65, n_basin)
-	local ceiling = sea + 30 + 12 * n_ceiling
+	-- high enough for a brachiosaurus, neck up
+	local ceiling = sea + 48 + 14 * n_ceiling
 	local f = math.max(math.floor(mid + (floor - mid) * open), sea - caves.DEPTH + 4)
 	local c = math.min(math.floor(mid + (ceiling - mid) * open), sea + caves.HEIGHT - 4)
-	if c - f < 2 or (n_pillar > 0.78 and open > 0.6 and c - f > 12) then
+	if c - f < 2 then
 		return nil
 	end
 	return f, c
+end
+
+-- The cavern grid: squares of CELL nodes that spread out the pillars and the
+-- amber blobs. Its lines follow the edges of the default 80-node mapchunks,
+-- so that a pillar or a blob stays within one mapchunk.
+caves.CELL = 40
+local CELL_ORIGIN = -32
+
+-- Range of grid squares covering a range of coordinates.
+function caves.cells(from, to)
+	return math.floor((from - CELL_ORIGIN) / caves.CELL), math.floor((to - CELL_ORIGIN) / caves.CELL)
+end
+
+-- Grid square holding a column.
+function caves.cell_of(x, z)
+	return math.floor((x - CELL_ORIGIN) / caves.CELL), math.floor((z - CELL_ORIGIN) / caves.CELL)
+end
+
+function caves.cell_corner(cx, cz)
+	return CELL_ORIGIN + cx * caves.CELL, CELL_ORIGIN + cz * caves.CELL
+end
+
+-- Random generator of one grid square of a cavern, the same for every
+-- mapchunk that needs it.
+function caves.cell_random(level, cx, cz, salt)
+	return PcgRandom((cx * 73856093 + cz * 19349663 + level.ox * 83492791 + salt) % 2147483647)
+end
+
+-- Limestone pillars from floor to ceiling: one in about half of the grid
+-- squares, where the cavern is at least PILLAR_HEIGHT high at its centre.
+-- Round, slimmest halfway up, more than twice as wide where they meet the
+-- floor and the ceiling.
+caves.PILLAR_HEIGHT = 12
+
+function caves.pillar(level, cx, cz)
+	local rng = caves.cell_random(level, cx, cz, 1)
+	if rng:next(1, 100) > 55 then
+		return nil
+	end
+	local x0, z0 = caves.cell_corner(cx, cz)
+	-- the widest part stays inside the square
+	return {x = x0 + rng:next(10, caves.CELL - 11), z = z0 + rng:next(10, caves.CELL - 11),
+		r = rng:next(20, 40) / 10}
+end
+
+-- Radius of a pillar at height t: 0 at the floor, 1 at the ceiling. The
+-- widest is at both ends (t = 0 or 1).
+function caves.pillar_radius(p, t)
+	return p.r * (1 + 1.2 * math.abs(2 * t - 1) ^ 2.5)
 end
 
 -- The "open" noise of a column, raised in the middle of the cavern and
@@ -147,10 +196,7 @@ end
 
 local point_noises -- created on first use, once the map seed is known
 
-function caves.column_at(level, x, z)
-	if (x - level.x) ^ 2 + (z - level.z) ^ 2 >= level.radius ^ 2 then
-		return nil
-	end
+local function noise_column(level, x, z)
 	if not point_noises then
 		point_noises = {}
 		for name, params in pairs(caves.noises) do
@@ -159,8 +205,27 @@ function caves.column_at(level, x, z)
 	end
 	local pos = {x = x + level.ox, y = z + level.oz}
 	return caves.column(level.sea, point_noises.floor:get_2d(pos), point_noises.ceiling:get_2d(pos),
-		caves.open(level, x, z, point_noises.open:get_2d(pos)), point_noises.basin:get_2d(pos),
-		point_noises.pillar:get_2d(pos))
+		caves.open(level, x, z, point_noises.open:get_2d(pos)), point_noises.basin:get_2d(pos))
+end
+
+-- Same floor and ceiling as the map generator, nil for rock, including the
+-- core of the pillars.
+function caves.column_at(level, x, z)
+	if (x - level.x) ^ 2 + (z - level.z) ^ 2 >= level.radius ^ 2 then
+		return nil
+	end
+	local f, c = noise_column(level, x, z)
+	if not f then
+		return nil
+	end
+	local p = caves.pillar(level, caves.cell_of(x, z))
+	if p and math.sqrt((x - p.x) ^ 2 + (z - p.z) ^ 2) - 0.5 <= p.r then
+		local pf, pc = noise_column(level, p.x, p.z)
+		if pf and pc - pf >= caves.PILLAR_HEIGHT then
+			return nil
+		end
+	end
+	return f, c
 end
 
 function caves.level_at(pos)

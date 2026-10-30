@@ -26,7 +26,7 @@ local species = {
 	{name = "paleotest:triceratops", where = "land", weight = 4, group = {1, 3}, room = 4},
 	{name = "paleotest:carnotaurus", where = "land", weight = 2, group = {1, 1}, room = 4},
 	{name = "paleotest:tyrannosaurus", where = "land", weight = 1, group = {1, 1}, room = 4, max = 1},
-	{name = "paleotest:brachiosaurus", where = "land", weight = 1, group = {1, 2}, room = 8,
+	{name = "paleotest:brachiosaurus", where = "land", weight = 1, group = {1, 2}, room = 20,
 		width = 3, max = 2},
 	{name = "paleotest:sarcosuchus", where = "shore", weight = 8, group = {1, 2}, room = 3},
 	{name = "paleotest:spinosaurus", where = "shore", weight = 5, group = {1, 1}, room = 5, max = 1},

@@ -24,10 +24,11 @@ GAMEID=<id_du_jeu> bash .claude/skills/luanti-test-debug/scripts/smoke_test.sh
 ```
 
 ## 4. Test manuel à proposer
-Monde neuf, créatif, `/grant singleplayer all`, puis `/teleport 0 -2110 0` (le premier niveau commence vers -2100) :
+Monde neuf, créatif, `/grant singleplayer all`, puis `/paleocave` pour avoir les coordonnées de la caverne la plus proche, et `/teleport` :
 - cavernes, mers, ambre lumineux, vignes, arbres, peintures rupestres ;
 - les dinosaures sont déjà là à l'arrivée (placés à la génération), les marins dans l'eau seulement ;
-- creuser de l'ambre avec moustique → passer le moustique dans l'analyseur de fossiles → ADN → cultivateur → œuf ;
+- piliers en sablier du sol au plafond, boules d'ambre rares au plafond avec un ambersol, sol bien éclairé ;
+- pas de message « get_nodes_in_area: area too big » dans le chat ;
 - tenir une tree star : les herbivores suivent.
 
 ## Lire une erreur

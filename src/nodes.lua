@@ -127,34 +127,52 @@ core.register_node("paleocave:primordial_grass", {
 	}),
 })
 
--- Amber: glowing resin that lights the caverns. Light 13 also makes it a heat
--- source that hatches PaleoTest eggs.
+-- Amber: translucent resin, in blobs hanging from the ceilings. The ambersol
+-- at the top of each blob lights the cavern below it like a sun; its light
+-- also makes it a heat source that hatches PaleoTest eggs.
 
-local amber = {
+core.register_node("paleocave:amber", {
 	description = S("Amber"),
 	drawtype = "glasslike",
 	tiles = {"paleocave_amber.png"},
 	use_texture_alpha = "blend",
 	paramtype = "light",
 	sunlight_propagates = true,
-	light_source = 13,
 	groups = {cracky = 3},
 	is_ground_content = false,
 	sounds = default.node_sound_glass_defaults(),
-}
-core.register_node("paleocave:amber", amber)
-
-local amber_with_mosquito = table.copy(amber)
-amber_with_mosquito.description = S("Amber with Mosquito")
-amber_with_mosquito.tiles = {"paleocave_amber_mosquito.png"}
-amber_with_mosquito.drop = "paleocave:mosquito_in_amber"
-core.register_node("paleocave:amber_with_mosquito", amber_with_mosquito)
-
-core.register_craftitem("paleocave:mosquito_in_amber", {
-	description = S("Mosquito in Amber") .. "\n" ..
-		core.colorize("#f0b040", S("Analyze it in a fossil analyzer to extract DNA.")),
-	inventory_image = "paleocave_mosquito_in_amber.png",
 })
+
+core.register_node("paleocave:ambersol", {
+	description = S("Ambersol"),
+	tiles = {"paleocave_ambersol.png"},
+	paramtype = "light",
+	light_source = core.LIGHT_MAX,
+	groups = {cracky = 2},
+	is_ground_content = false,
+	sounds = default.node_sound_glass_defaults(),
+})
+
+-- Invisible light that the ambersol casts down to the cavern floor.
+core.register_node("paleocave:ambersol_light", {
+	description = S("Ambersol Light"),
+	drawtype = "airlike",
+	paramtype = "light",
+	sunlight_propagates = true,
+	light_source = core.LIGHT_MAX,
+	walkable = false,
+	pointable = false,
+	diggable = false,
+	buildable_to = true,
+	floodable = true,
+	drop = "",
+	groups = {not_in_creative_inventory = 1},
+	is_ground_content = false,
+})
+
+-- Amber with a mosquito was removed.
+core.register_alias("paleocave:amber_with_mosquito", "paleocave:amber")
+core.register_alias("paleocave:mosquito_in_amber", "paleocave:amber")
 
 -- Archaic vines hang from the ceilings; brachiosaurs browse them like leaves.
 

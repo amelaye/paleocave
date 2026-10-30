@@ -62,7 +62,8 @@ local function init()
 	c.limestone = id("paleocave:limestone")
 	c.grass = id("paleocave:primordial_grass")
 	c.amber = id("paleocave:amber")
-	c.amber_mosquito = id("paleocave:amber_with_mosquito")
+	c.ambersol = id("paleocave:ambersol")
+	c.light = id("paleocave:ambersol_light")
 	c.vine = id("paleocave:archaic_vine")
 	c.vine_end = id("paleocave:archaic_vine_end")
 	c.trunk = id("paleotest:metasequoia_tree") or id("default:pine_tree")
@@ -98,6 +99,16 @@ local function init()
 			fillable[cid] = true
 		end
 	end
+	-- Everness fills the whole underground with its cave biomes (stone, moss,
+	-- crystals, plants, structures): in and around the caverns, all of it is
+	-- hollowed out or turned into limestone. Everness is generated first
+	-- (optional dependency), so nothing of it comes back afterwards.
+	for name in pairs(core.registered_nodes) do
+		if name:sub(1, 9) == "everness:" then
+			local cid = core.get_content_id(name)
+			carvable[cid], fillable[cid] = true, true
+		end
+	end
 
 	land_plants = weighted(
 		plant("default:fern_1", 12), plant("default:fern_2", 10), plant("default:fern_3", 8),
@@ -119,11 +130,6 @@ local noise_maps, noise_side
 local values = {}
 local floors, ceilings, tops = {}, {}, {}
 local reserved = {} -- columns taken by a structure
-
--- One amber node in twelve holds a mosquito.
-local function amber(rng)
-	return rng:next(1, 12) == 1 and c.amber_mosquito or c.amber
-end
 
 -- Whether a tall decoration may fill a cell: air, or a cell of the mapchunk
 -- above or below that is not generated yet but will be hollow there (the
@@ -175,25 +181,23 @@ end
 -- {dx, dz, wallmounted param2 facing that wall}
 local WALLS = {{1, 0, 2}, {-1, 0, 3}, {0, 1, 4}, {0, -1, 5}}
 
--- Paintings at eye level and amber set into the limestone walls.
+-- Paintings at eye level on the limestone walls.
 local function decorate_walls(ctx, x, y, z, ceiling)
 	local area, rng, minp, maxp = ctx.area, ctx.rng, ctx.minp, ctx.maxp
-	for yy = y, math.min(ceiling - 1, y + 4, maxp.y) do
+	if #paintings == 0 then
+		return
+	end
+	for yy = y + 1, math.min(ceiling - 1, y + 2, maxp.y) do
 		local vi = area:index(x, yy, z)
 		if data[vi] == c.air then
 			for _, wall in ipairs(WALLS) do
 				local nx, nz = x + wall[1], z + wall[2]
 				if nx >= minp.x and nx <= maxp.x and nz >= minp.z and nz <= maxp.z then
 					local ni = area:index(nx, yy, nz)
-					if data[ni] == c.limestone then
-						local roll = rng:next(1, 1000)
-						if roll <= 8 and yy > y and yy <= y + 2 and #paintings > 0 then
-							data[vi] = paintings[rng:next(1, #paintings)]
-							param2[vi] = wall[3]
-							break
-						elseif roll <= 17 then
-							data[ni] = amber(rng)
-						end
+					if data[ni] == c.limestone and rng:next(1, 1000) <= 8 then
+						data[vi] = paintings[rng:next(1, #paintings)]
+						param2[vi] = wall[3]
+						break
 					end
 				end
 			end
@@ -212,14 +216,7 @@ local function decorate_floor(ctx, x, z, i, f, ceiling)
 		return
 	end
 	local grassy = tops[i] == c.grass
-	local roll = rng:next(1, 1000)
-	if roll <= 14 then
-		-- amber crystal growing out of the floor
-		data[vi] = amber(rng)
-		if ceiling - f > 4 and rng:next(1, 3) == 1 and data[vi + area.ystride] == c.air then
-			data[vi + area.ystride] = amber(rng)
-		end
-	elseif roll <= 19 and grassy and ceiling - f >= 20
+	if rng:next(1, 1000) <= 5 and grassy and ceiling - f >= 20
 			and x - ctx.minp.x >= 4 and ctx.maxp.x - x >= 4
 			and z - ctx.minp.z >= 4 and ctx.maxp.z - z >= 4
 			and not structures.near(ctx, x, z, 5) then
@@ -242,22 +239,7 @@ local function decorate_seabed(ctx, x, z, f, ceiling)
 	if cid ~= c.sand and cid ~= c.clay and cid ~= c.gravel then
 		return
 	end
-	local roll = rng:next(1, 1000)
-	if roll <= 4 then
-		-- amber spire rising out of the sea: it lights the water surface
-		local top = math.min(ctx.sea + rng:next(1, 3), ceiling - 2, area.MaxEdge.y)
-		for y = f, top do
-			local si = area:index(x, y, z)
-			local here = data[si]
-			if y == f or here == c.water or here == c.air
-					or (here == c.ignore and y <= ceiling) then
-				data[si] = amber(rng)
-			end
-		end
-	elseif roll <= 22 then
-		-- glowing amber on the sea floor
-		data[vi] = amber(rng)
-	elseif roll <= 134 and c.kelp and cid == c.sand and ctx.sea - f >= 3 then
+	if rng:next(1, 1000) <= 112 and c.kelp and cid == c.sand and ctx.sea - f >= 3 then
 		data[vi] = c.kelp
 		param2[vi] = 16 * rng:next(2, math.min(6, ctx.sea - f - 1))
 	end
@@ -271,17 +253,7 @@ local function decorate_ceiling(ctx, x, z, f, ceiling)
 		return
 	end
 	local ground = math.max(f, ctx.sea) -- floor, or water surface
-	local roll = rng:next(1, 1000)
-	if roll <= 22 then
-		-- amber cluster hanging from the ceiling
-		if data[vi + ystride] == c.limestone then
-			data[vi + ystride] = amber(rng)
-		end
-		data[vi] = amber(rng)
-		if ceiling - ground > 4 and rng:next(1, 2) == 1 and data[vi - ystride] == c.air then
-			data[vi - ystride] = amber(rng)
-		end
-	elseif roll <= 85 then
+	if rng:next(1, 1000) <= 63 then
 		local length = math.min(rng:next(2, 9), ceiling - ground - 3)
 		local n = 0
 		while n < length and free(ctx, vi - n * ystride, x, ceiling - n, z) do
@@ -444,6 +416,150 @@ local function populate(ctx)
 	end
 end
 
+-- Pillars, amber and light --
+
+local function column_index(minp, side, x, z)
+	return (z - minp.z) * side + (x - minp.x) + 1
+end
+
+-- Limestone pillars from floor to ceiling (see caves.pillar). Their core is
+-- solid rock for everything else; structures stay off their wider base.
+local function raise_pillars(level, minp, maxp, area, y0, y1)
+	local side = maxp.x - minp.x + 1
+	local cx0, cx1 = caves.cells(minp.x, maxp.x)
+	local cz0, cz1 = caves.cells(minp.z, maxp.z)
+	for cz = cz0, cz1 do
+		for cx = cx0, cx1 do
+			local p = caves.pillar(level, cx, cz)
+			if p and p.x >= minp.x and p.x <= maxp.x and p.z >= minp.z and p.z <= maxp.z then
+				local ci = column_index(minp, side, p.x, p.z)
+				local pf, pc = floors[ci], ceilings[ci]
+				if pf and pc - pf >= caves.PILLAR_HEIGHT then
+					local widest = caves.pillar_radius(p, 0)
+					local reach = math.ceil(widest)
+					for z = math.max(p.z - reach, minp.z), math.min(p.z + reach, maxp.z) do
+						for x = math.max(p.x - reach, minp.x), math.min(p.x + reach, maxp.x) do
+							local i = column_index(minp, side, x, z)
+							local f, ceiling = floors[i], ceilings[i]
+							local d = math.sqrt((x - p.x) ^ 2 + (z - p.z) ^ 2) - 0.5
+							if f and d <= widest then
+								local vi = area:index(x, math.max(f + 1, y0), z)
+								for y = math.max(f + 1, y0), math.min(ceiling, y1) do
+									local t = math.min(math.max((y - pf) / (pc - pf), 0), 1)
+									local cid = data[vi]
+									if (cid == c.air or cid == c.water) and d <= caves.pillar_radius(p, t) then
+										data[vi] = c.limestone
+									end
+									vi = vi + area.ystride
+								end
+								if d <= p.r then
+									floors[i] = false
+								else
+									reserved[i] = true
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+-- Amber blobs hanging from the ceiling, at most one per cell square of the
+-- cavern grid, with an ambersol at the top of each one. Every mapchunk that
+-- a blob crosses draws the same one. Returns the blobs.
+local function hang_amber(ctx, level)
+	local area, minp, maxp, side = ctx.area, ctx.minp, ctx.maxp, ctx.side
+	local blobs = {}
+	local cx0, cx1 = caves.cells(minp.x, maxp.x)
+	local cz0, cz1 = caves.cells(minp.z, maxp.z)
+	for cz = cz0, cz1 do
+		for cx = cx0, cx1 do
+			local rng = caves.cell_random(level, cx, cz, 2)
+			local x0, z0 = caves.cell_corner(cx, cz)
+			-- the first spot under a high enough ceiling
+			for _ = 1, 8 do
+				local x = x0 + rng:next(4, caves.CELL - 5)
+				local z = z0 + rng:next(4, caves.CELL - 5)
+				if x - minp.x >= 2 and maxp.x - x >= 2 and z - minp.z >= 2 and maxp.z - z >= 2 then
+					local i = column_index(minp, side, x, z)
+					local f, ceiling = floors[i], ceilings[i]
+					if f and ceiling - math.max(f, ctx.sea) >= 8 then
+						blobs[#blobs + 1] = {x = x, z = z, f = f, ceiling = ceiling, cx = cx, cz = cz,
+							radius = rng:next(1, 2) + 0.5, down = rng:next(1, 2)}
+						break
+					end
+				end
+			end
+		end
+	end
+	for _, b in ipairs(blobs) do
+		-- one layer in the ceiling rock, one or two hanging below it
+		local top = b.ceiling + 1
+		for y = math.max(top - b.down, minp.y), math.min(top, maxp.y) do
+			local r = b.radius - 0.7 * (top - y)
+			for z = b.z - 2, b.z + 2 do
+				for x = b.x - 2, b.x + 2 do
+					if (x - b.x) ^ 2 + (z - b.z) ^ 2 <= r * r then
+						local vi = area:index(x, y, z)
+						local cid = data[vi]
+						if cid == c.air or cid == c.limestone then
+							data[vi] = c.amber
+						end
+					end
+				end
+			end
+		end
+		if top >= minp.y and top <= maxp.y then
+			data[area:index(b.x, top, b.z)] = c.ambersol
+		end
+	end
+	return blobs
+end
+
+-- Space between the invisible lights, over the floor and down the column
+-- under each ambersol.
+local LIGHT_STEP = 6
+
+local function put_light(ctx, x, y, z)
+	if y >= ctx.minp.y and y <= ctx.maxp.y then
+		local vi = ctx.area:index(x, y, z)
+		if data[vi] == c.air then
+			data[vi] = c.light
+		end
+	end
+end
+
+-- The ambersol lights everything below it: invisible lights down from each
+-- blob, and over the floor of its whole cell square. Placed after the
+-- decorations, in the air only.
+local function cast_light(ctx, blobs)
+	local minp, maxp, side, sea = ctx.minp, ctx.maxp, ctx.side, ctx.sea
+	for _, b in ipairs(blobs) do
+		for y = b.ceiling - b.down, math.max(b.f, sea) + 2, -LIGHT_STEP do
+			put_light(ctx, b.x, y, b.z)
+		end
+		local x0, z0 = caves.cell_corner(b.cx, b.cz)
+		for z = math.max(z0 + 3, minp.z), math.min(z0 + caves.CELL - 1, maxp.z) do
+			if (z - z0 - 3) % LIGHT_STEP == 0 then
+				for x = math.max(x0 + 3, minp.x), math.min(x0 + caves.CELL - 1, maxp.x) do
+					if (x - x0 - 3) % LIGHT_STEP == 0 then
+						local i = column_index(minp, side, x, z)
+						local f = floors[i]
+						if f then
+							local y = math.max(f, sea) + 2
+							if y < ceilings[i] then
+								put_light(ctx, x, y, z)
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
 local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 	local side = maxp.x - minp.x + 1
 	if noise_side ~= side then
@@ -461,7 +577,7 @@ local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 	local y0, y1 = math.max(minp.y, level.ymin), math.min(maxp.y, level.ymax)
 	local ystride = area.ystride
 	local n_floor, n_ceiling, n_open = values.floor, values.ceiling, values.open
-	local n_basin, n_pillar, n_flora = values.basin, values.pillar, values.flora
+	local n_basin, n_flora = values.basin, values.flora
 
 	-- Terrain: hollow out the caverns, fill the seas, lay the floors and turn
 	-- the surrounding rock into limestone.
@@ -470,8 +586,7 @@ local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 		for x = minp.x, maxp.x do
 			i = i + 1
 			local open = caves.open(level, x, z, n_open[i])
-			local f, ceiling = caves.column(sea, n_floor[i], n_ceiling[i], open,
-				n_basin[i], n_pillar[i])
+			local f, ceiling = caves.column(sea, n_floor[i], n_ceiling[i], open, n_basin[i])
 			floors[i], ceilings[i] = f or false, ceiling or false
 			reserved[i] = false
 			local top
@@ -512,6 +627,8 @@ local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 		end
 	end
 
+	raise_pillars(level, minp, maxp, area, y0, y1)
+
 	local ctx = {area = area, rng = rng, minp = minp, maxp = maxp, sea = sea, side = side,
 		spawns = spawns, data = data, param2 = param2, floors = floors, ceilings = ceilings,
 		reserved = reserved, footprints = {}, chests = chests}
@@ -519,6 +636,8 @@ local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 	if structures.enabled then
 		structures.build(ctx)
 	end
+
+	local blobs = hang_amber(ctx, level)
 
 	-- Decorations
 	i = 0
@@ -542,6 +661,8 @@ local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 			end
 		end
 	end
+
+	cast_light(ctx, blobs)
 
 	if creatures.density > 0 then
 		populate(ctx)

@@ -1,6 +1,6 @@
 ---
 name: luanti-cave-mapgen
-description: Modifie la génération des cavernes primordiales du mod paleocave (couche -2000 à -5000) - forme des niveaux, mers souterraines, calcaire, ambre lumineux, végétation, arbres, vignes, peintures rupestres - via src/caves.lua et src/mapgen.lua (VoxelManip dans on_generated). À utiliser pour tout ce qui touche au terrain, aux grottes ou à l'éclairage par l'ambre.
+description: Modifie la génération des cavernes primordiales du mod paleocave (couche -2000 à -5000) - forme des 5 cavernes, piliers, mers souterraines, calcaire, ambre et ambersol, végétation, arbres, vignes, peintures rupestres - via src/caves.lua et src/mapgen.lua (VoxelManip dans on_generated). À utiliser pour tout ce qui touche au terrain, aux grottes ou à l'éclairage par l'ambersol.
 ---
 
 # Cavernes primordiales : génération
@@ -8,7 +8,7 @@ description: Modifie la génération des cavernes primordiales du mod paleocave 
 Charger `paleocave-conventions`. Le mod ne choisit pas le mapgen du jeu : il fonctionne avec tout mapgen qui remplit le sous-sol de pierre (v7, valleys, carpathian, v5, flat...). Il est désactivé en `singlenode`.
 
 ## Architecture
-- `src/caves.lua` : **seule source de vérité** de la géométrie. Couche `TOP = -2000` à `BOTTOM = -5000`, 15 niveaux espacés de 200 nœuds (niveau de la mer ± 20 selon le niveau). Six bruits 2D : `floor`, `ceiling`, `open`, `basin`, `pillar`, `flora`. `caves.column(...)` renvoie le sol F et le plafond C (ou nil pour de la roche) ; les cellules avec F < y <= C sont creuses, et celles <= niveau de la mer contiennent de l'eau.
+- `src/caves.lua` : **seule source de vérité** de la géométrie. 5 cavernes (`COUNT`) en disques de rayon 250 (`RADIUS`) dans la carte -10000 à 10000 (`MAP_LIMIT`), chacune un seul niveau à sa profondeur entre `TOP = -2000` et `BOTTOM = -5000` ; positions tirées de la graine puis gardées dans le mod storage (`caves.get_levels()`). Cinq bruits 2D : `floor`, `ceiling`, `open`, `basin`, `flora` ; `caves.open` referme la caverne vers son bord. Grille de cases de 40 nœuds (`caves.cells`, `caves.cell_random`) pour répartir piliers (`caves.pillar`, `caves.pillar_radius`) et boules d'ambre. `caves.column(...)` renvoie le sol F et le plafond C (ou nil pour de la roche) ; les cellules avec F < y <= C sont creuses, et celles <= niveau de la mer contiennent de l'eau.
 - `src/mapgen.lua` : `core.register_on_generated` + VoxelManip. Trois passes : terrain (creuser, eau, calcaire, sol), décorations (ambre, plantes, arbres, vignes, varech, peintures), puis `calc_lighting`, `write_to_map`, `update_liquids`.
 - `src/structures.lua` : les ruines et les squelettes, construits juste après la passe de terrain (`structures.build(ctx)`). Elles aplanissent leur site (`floors` mis à jour), marquent leurs colonnes dans `reserved` (pas de décoration ni de créature dessus, pas d'arbre à moins de 5 nœuds : `structures.near`) et notent les coffres, remplis après `write_to_map` (`structures.fill_chests`).
 - Les créatures sont placées à la fin de chaque niveau par `populate()` (même fichier), à partir des données VoxelManip. Le repeuplement optionnel (`src/spawning.lua`) relit la géométrie avec `caves.column_at` : toute modification de la forme doit passer par `caves.lua`.
@@ -23,7 +23,7 @@ Charger `paleocave-conventions`. Le mod ne choisit pas le mapgen du jeu : il fon
 - Bruits : `core.get_value_noise_map or core.get_perlin_map` (et `core.get_value_noise or core.get_perlin`) pour rester compatible entre versions de Luanti.
 
 ## Réglages fréquents
-- Densité de lumière : probabilités d'ambre au sol, au plafond, dans les parois et au fond des mers dans `mapgen.lua`. L'ambre émet 13 et la lumière perd 1 par nœud.
+- Lumière : une boule d'ambre au plafond par case de 40 (`hang_amber`), avec un ambersol (14) au sommet ; lumières invisibles `paleocave:ambersol_light` sous la boule et sur le sol de toute la case, tous les `LIGHT_STEP` nœuds (`cast_light`, après les décorations, dans l'air seulement). L'ambre n'éclaire pas.
 - Plus d'eau : seuils de `basin` dans `caves.column`. Plafonds plus hauts : `ceiling`. Moins de cavernes : seuil de `open`.
 - Changer `TOP`/`BOTTOM` ou l'espacement ne vaut que pour les zones pas encore générées.
 - Squelettes : `SKELETON_CHANCE`, `SEA_SKELETON_CHANCE` et les proportions de chaque espèce dans `SKELETONS` (queue, cage thoracique, cou, crâne, hauteur, côtes, membres). Sous l'eau, uniquement des blocs pleins : une dalle ou un escalier y garderait une poche d'air.
