@@ -20,6 +20,8 @@ Charger `paleocave-conventions`. On ne modifie que paleocave, jamais les autres 
 | mêmes recettes, deux résultats | recettes en conflit | changer la recette de paleocave |
 | lag | trop de créatures actives, ABM trop fréquent | baisser `paleocave_dinosaur_density` (nouvelles zones seulement), revoir `interval/chance` des ABM |
 | nom déjà pris | autre mod au même nom de nœud | nos noms sont tous préfixés `paleocave:`, vérifier les `subname` d'escaliers |
+| moreblocks ajouté ou retiré après coup | les formes changent de nom (`paleocave:slab_...` contre `stairs:slab_paleocave_...`) | ajout : des alias couvrent les anciens escaliers et dalles ; retrait : les formes moreblocks déjà posées (ruines comprises) deviennent inconnues, le signaler |
+| version de moreblocks sans `stairsplus:register_all` | API différente | `register_shapes` retombe sur `stairs` ; adapter si besoin |
 
 ## Versions
 PaleoTest (2020-21), mob_core et mobkit sont anciens. Pour repérer les dépréciations : `deprecated_lua_api_handling = log` dans `minetest.conf`, puis chercher `deprecated` dans le log. Dans paleocave, toujours prévoir le repli entre ancien et nouveau nom d'API (ex. `core.get_value_noise_map or core.get_perlin_map`).

@@ -15,6 +15,7 @@ for f in init.lua src/*.lua; do luajit -bl "$f" >/dev/null || echo "ERREUR $f"; 
 
 ## 2. Test hors moteur (scratchpad)
 Pour la logique pure (géométrie de `src/caves.lua`, passes de `src/mapgen.lua`, placement des créatures) : un petit harnais luajit dans le scratchpad qui simule `core` (bruits, VoxelManip en mémoire, `PcgRandom`), charge `init.lua`, appelle les `on_generated` enregistrés sur quelques mapchunks entre -2000 et -5000, puis vérifie : aucune erreur, eau jamais en contact latéral ou par en dessous avec l'air, présence d'ambre, de plantes et de vignes, et part du sol éclairé (propagation de lumière simulée). Ne pas placer ce harnais dans le projet.
+Pour les ruines, le harnais simule aussi moreblocks (`stairsplus:register_all`) ou seulement `stairs`, garde le param2 de chaque nœud et vérifie : aucun bloc de structure suspendu dans le vide, coffres posés sur un plancher et remplis, peintures adossées à un mur, aucune créature dans une maison. Pour juger l'aspect (irrégularité des murs), exporter les voxels d'une maison et en faire un rendu isométrique PNG (petit script Python sans dépendance, dans le scratchpad) plutôt que de lire des coupes en texte.
 
 ## 3. Test dans le jeu (sur accord explicite, Luanti installé)
 Script `.claude/skills/luanti-test-debug/scripts/smoke_test.sh` : il crée un monde jetable pour le jeu existant (`GAMEID=...`), y lie le mod via `worldmods/paleocave`, démarre un serveur headless, puis classe le log (`ERROR`, `WARNING`, `deprecated`).

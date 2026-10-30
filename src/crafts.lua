@@ -6,6 +6,15 @@ core.register_craft({
 	},
 })
 
+-- The bones found in PaleoTest's fossil blocks make bone blocks.
+if core.get_modpath("bones") then
+	core.register_craft({
+		type = "shapeless",
+		output = "paleocave:bone_block",
+		recipe = {"bones:bones"},
+	})
+end
+
 -- A mosquito trapped in amber holds dinosaur blood: PaleoTest's fossil analyzer
 -- turns it into DNA of a dinosaur, pterosaur or marine reptile.
 

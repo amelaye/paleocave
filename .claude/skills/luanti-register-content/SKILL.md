@@ -23,12 +23,8 @@ Sons MTG : `default.node_sound_{stone,dirt,sand,gravel,wood,leaves,glass,metal,w
 Groupes MTG : `cracky/crumbly/choppy/snappy/oddly_breakable_by_hand/dig_immediate` (+ `level`), `stone`, `wood`, `tree`, `leaves`, `flora`, `soil`, `sand`, `flammable`, `attached_node`.
 
 ## Variantes (APIs MTG, toujours sous condition)
+Escaliers, dalles et autres formes : passer par `register_shapes(subname, nœud, groupes, args_stairs)` de `src/nodes.lua`. Avec **moreblocks**, il appelle `stairsplus:register_all("paleocave", subname, ...)` (nœuds `paleocave:slab_<subname>_quarter`, `paleocave:micro_<subname>`..., scie circulaire) et crée des alias depuis les anciens noms `stairs:*_paleocave_<subname>`. Sans moreblocks, il appelle `stairs.register_stair_and_slab("paleocave_<subname>", ...)`. Dans les deux cas, il remplit `paleocave.shapes[subname]` (`full`, `slab`, `slab_quarter`, `slab_three_quarter`, `stair`, `stair_inner`, `stair_outer`, `panel`, `micro`), que les ruines utilisent. Ne pas enregistrer de formes moreblocks pour les planches de métaséquoia : PaleoTest a déjà leurs escaliers `stairs`, et les recettes se contrediraient.
 ```lua
-if core.get_modpath("stairs") then
-	stairs.register_stair_and_slab("paleocave_limestone", "paleocave:limestone", {cracky = 3},
-		{"paleocave_limestone.png"}, S("Limestone Stair"), S("Limestone Slab"),
-		default.node_sound_stone_defaults(), true)
-end
 if core.get_modpath("walls") then
 	walls.register("paleocave:limestone_brick_wall", S("Limestone Brick Wall"),
 		{"paleocave_limestone_brick.png"}, "paleocave:limestone_brick", default.node_sound_stone_defaults())

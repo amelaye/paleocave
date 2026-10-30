@@ -3,6 +3,7 @@
 
 local caves = paleocave.caves
 local creatures = paleocave.creatures
+local structures = paleocave.structures
 
 if core.get_mapgen_setting("mg_name") == "singlenode" then
 	core.log("action", "[paleocave] singlenode mapgen: no primordial caverns")
@@ -117,6 +118,7 @@ local data, param2 = {}, {}
 local noise_maps, noise_side
 local values = {}
 local floors, ceilings, tops = {}, {}, {}
+local reserved = {} -- columns taken by a structure
 
 -- One amber node in twelve holds a mosquito.
 local function amber(rng)
@@ -219,7 +221,8 @@ local function decorate_floor(ctx, x, z, i, f, ceiling)
 		end
 	elseif roll <= 19 and grassy and ceiling - f >= 20
 			and x - ctx.minp.x >= 4 and ctx.maxp.x - x >= 4
-			and z - ctx.minp.z >= 4 and ctx.maxp.z - z >= 4 then
+			and z - ctx.minp.z >= 4 and ctx.maxp.z - z >= 4
+			and not structures.near(ctx, x, z, 5) then
 		grow_tree(ctx, x, y, z, ceiling)
 	elseif grassy then
 		local chance = math.max(8, math.min(70, 30 + 40 * values.flora[i]))
@@ -301,13 +304,16 @@ local CREATURE_TRIES = 11
 local CORNERS = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}}
 local AROUND = {{4, 0}, {-4, 0}, {0, 4}, {0, -4}, {8, 0}, {-8, 0}, {0, 8}, {0, -8}}
 
--- Floor and ceiling of a column of the current mapchunk, nil for rock or
--- for a column outside the mapchunk.
+-- Floor and ceiling of a column of the current mapchunk, nil for rock, for a
+-- structure or for a column outside the mapchunk.
 local function column(ctx, x, z)
 	if x < ctx.minp.x or x > ctx.maxp.x or z < ctx.minp.z or z > ctx.maxp.z then
 		return nil
 	end
 	local i = (z - ctx.minp.z) * ctx.side + (x - ctx.minp.x) + 1
+	if reserved[i] then
+		return nil
+	end
 	return floors[i] or nil, ceilings[i]
 end
 
@@ -438,7 +444,7 @@ local function populate(ctx)
 	end
 end
 
-local function generate_level(level, minp, maxp, area, rng, spawns)
+local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 	local side = maxp.x - minp.x + 1
 	if noise_side ~= side then
 		noise_maps, noise_side = {}, side
@@ -466,6 +472,7 @@ local function generate_level(level, minp, maxp, area, rng, spawns)
 			local f, ceiling = caves.column(sea, n_floor[i], n_ceiling[i], n_open[i],
 				n_basin[i], n_pillar[i])
 			floors[i], ceilings[i] = f or false, ceiling or false
+			reserved[i] = false
 			local top
 			if f then
 				if f < sea then
@@ -504,9 +511,15 @@ local function generate_level(level, minp, maxp, area, rng, spawns)
 		end
 	end
 
-	-- Decorations
 	local ctx = {area = area, rng = rng, minp = minp, maxp = maxp, sea = sea, side = side,
-		spawns = spawns}
+		spawns = spawns, data = data, param2 = param2, floors = floors, ceilings = ceilings,
+		reserved = reserved, footprints = {}, chests = chests}
+	-- Ruins and skeletons, on floors levelled for them
+	if structures.enabled then
+		structures.build(ctx)
+	end
+
+	-- Decorations
 	i = 0
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
@@ -514,10 +527,13 @@ local function generate_level(level, minp, maxp, area, rng, spawns)
 			local f = floors[i]
 			if f then
 				local ceiling = ceilings[i]
-				if f >= sea then
-					decorate_floor(ctx, x, z, i, f, ceiling)
-				elseif f >= minp.y and f <= maxp.y then
-					decorate_seabed(ctx, x, z, f, ceiling)
+				-- the structures keep their columns
+				if not reserved[i] then
+					if f >= sea then
+						decorate_floor(ctx, x, z, i, f, ceiling)
+					elseif f >= minp.y and f <= maxp.y then
+						decorate_seabed(ctx, x, z, f, ceiling)
+					end
 				end
 				if ceiling >= minp.y and ceiling <= maxp.y then
 					decorate_ceiling(ctx, x, z, f, ceiling)
@@ -554,15 +570,18 @@ core.register_on_generated(function(minp, maxp, blockseed)
 	data = vm:get_data(data)
 	param2 = vm:get_param2_data(param2)
 	local rng = PcgRandom(blockseed)
-	local spawns = {}
+	local spawns, chests = {}, {}
 	for _, level in ipairs(todo) do
-		generate_level(level, minp, maxp, area, rng, spawns)
+		generate_level(level, minp, maxp, area, rng, spawns, chests)
 	end
 	vm:set_data(data)
 	vm:set_param2_data(param2)
 	vm:calc_lighting()
 	vm:write_to_map()
 	vm:update_liquids()
+	if #chests > 0 then
+		structures.fill_chests(chests)
+	end
 	if #spawns > 0 then
 		core.after(0, creatures.add, spawns)
 	end

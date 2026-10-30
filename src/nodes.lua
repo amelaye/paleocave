@@ -23,21 +23,91 @@ core.register_node("paleocave:limestone_brick", {
 	sounds = default.node_sound_stone_defaults(),
 })
 
-if core.get_modpath("stairs") then
-	stairs.register_stair_and_slab("paleocave_limestone", "paleocave:limestone",
-		{cracky = 3}, {"paleocave_limestone.png"},
-		S("Limestone Stair"), S("Limestone Slab"),
-		default.node_sound_stone_defaults(), true)
-	stairs.register_stair_and_slab("paleocave_limestone_brick", "paleocave:limestone_brick",
-		{cracky = 2}, {"paleocave_limestone_brick.png"},
-		S("Limestone Brick Stair"), S("Limestone Brick Slab"),
-		default.node_sound_stone_defaults(), false)
-end
-
 if core.get_modpath("walls") then
 	walls.register("paleocave:limestone_brick_wall", S("Limestone Brick Wall"),
 		{"paleocave_limestone_brick.png"}, "paleocave:limestone_brick",
 		default.node_sound_stone_defaults())
+end
+
+-- Bone block: bones bundled together, standing upright or lying like a log.
+-- The ruins of primordial houses hold some.
+
+core.register_node("paleocave:bone_block", {
+	description = S("Bone Block"),
+	tiles = {"paleocave_bone_block_top.png", "paleocave_bone_block_top.png",
+		"paleocave_bone_block_side.png"},
+	paramtype2 = "facedir",
+	on_place = core.rotate_node,
+	groups = {cracky = 2},
+	is_ground_content = false,
+	sounds = default.node_sound_gravel_defaults(),
+})
+
+-- Shapes --
+
+-- Stairs, slabs and smaller shapes of these blocks and of PaleoTest's
+-- metasequoia logs: those of moreblocks (cut with its circular saw) when it is
+-- installed, else the stairs and slabs of the stairs mod. paleocave.shapes
+-- lists them for the ruins.
+
+paleocave.shapes = {}
+
+local has_moreblocks = core.get_modpath("moreblocks") and core.global_exists("stairsplus")
+	and type(stairsplus.register_all) == "function"
+
+local MOREBLOCKS_SHAPES = {
+	slab = "slab_%s", slab_quarter = "slab_%s_quarter", slab_three_quarter = "slab_%s_three_quarter",
+	stair = "stair_%s", stair_inner = "stair_%s_inner", stair_outer = "stair_%s_outer",
+	panel = "panel_%s", micro = "micro_%s",
+}
+
+-- stairs_args: arguments of stairs.register_stair_and_slab after the groups,
+-- for the shapes of the stairs mod (nil: moreblocks shapes only)
+local function register_shapes(subname, nodename, groups, stairs_args)
+	local shapes = {full = nodename}
+	paleocave.shapes[subname] = shapes
+	local old = "paleocave_" .. subname -- name given by the stairs mod
+	if has_moreblocks then
+		local def = core.registered_nodes[nodename]
+		stairsplus:register_all("paleocave", subname, nodename, {
+			description = def.description,
+			tiles = def.tiles,
+			groups = groups,
+			sounds = def.sounds,
+			sunlight_propagates = true,
+		})
+		for kind, pattern in pairs(MOREBLOCKS_SHAPES) do
+			shapes[kind] = "paleocave:" .. pattern:format(subname)
+		end
+		if stairs_args then
+			-- stairs and slabs placed before moreblocks was installed
+			core.register_alias("stairs:stair_" .. old, shapes.stair)
+			core.register_alias("stairs:stair_inner_" .. old, shapes.stair_inner)
+			core.register_alias("stairs:stair_outer_" .. old, shapes.stair_outer)
+			core.register_alias("stairs:slab_" .. old, shapes.slab)
+		end
+	elseif stairs_args and core.get_modpath("stairs") then
+		stairs.register_stair_and_slab(old, nodename, groups, unpack(stairs_args))
+		shapes.stair = "stairs:stair_" .. old
+		shapes.stair_inner = "stairs:stair_inner_" .. old
+		shapes.stair_outer = "stairs:stair_outer_" .. old
+		shapes.slab = "stairs:slab_" .. old
+	end
+end
+
+register_shapes("limestone", "paleocave:limestone", {cracky = 3},
+	{{"paleocave_limestone.png"}, S("Limestone Stair"), S("Limestone Slab"),
+	default.node_sound_stone_defaults(), true})
+register_shapes("limestone_brick", "paleocave:limestone_brick", {cracky = 2},
+	{{"paleocave_limestone_brick.png"}, S("Limestone Brick Stair"), S("Limestone Brick Slab"),
+	default.node_sound_stone_defaults(), false})
+register_shapes("bone_block", "paleocave:bone_block", {cracky = 2},
+	{{"paleocave_bone_block_top.png", "paleocave_bone_block_top.png",
+	"paleocave_bone_block_side.png"}, S("Bone Block Stair"), S("Bone Block Slab"),
+	default.node_sound_gravel_defaults(), false})
+if core.registered_nodes["paleotest:metasequoia_tree"] then
+	register_shapes("metasequoia_tree", "paleotest:metasequoia_tree",
+		{choppy = 2, oddly_breakable_by_hand = 1, flammable = 2})
 end
 
 -- Primordial grass --

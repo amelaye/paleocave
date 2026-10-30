@@ -14,3 +14,11 @@ paleocave_max_dinosaurs (Repeuplement : créatures maximum autour d'un joueur) i
 
 #    Repeuplement : délai entre deux tentatives, en secondes.
 paleocave_spawn_interval (Repeuplement : intervalle en secondes) float 30 1 600
+
+#    Génère des ruines de maisons primordiales dans les cavernes : murs de calcaire effondrés,
+#    étage en métaséquoia, peintures rupestres, ossements et un coffre à l'étage.
+paleocave_ruins (Ruines primordiales) bool true
+
+#    Génère des squelettes de dinosaures en blocs d'os, à moitié enterrés dans les cavernes,
+#    et des squelettes de reptiles marins au fond des mers.
+paleocave_skeletons (Squelettes de dinosaures) bool true

@@ -145,6 +145,9 @@ local function find_floor(x, f, z)
 	end
 end
 
+-- No new creature among the ruins.
+local RUIN_NODES = {"paleocave:limestone_brick"}
+
 local function find_spot(player_pos)
 	local level = caves.level_at(player_pos.y)
 	if not level then
@@ -165,7 +168,7 @@ local function find_spot(player_pos)
 			end
 		elseif f then
 			local floor = find_floor(x, f, z)
-			if floor then
+			if floor and not core.find_node_near({x = x, y = floor, z = z}, 12, RUIN_NODES) then
 				local kind = "land"
 				if floor <= sea + 4
 						and core.find_node_near({x = x, y = sea, z = z}, 8, "group:water") then
