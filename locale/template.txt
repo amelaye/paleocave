@@ -1,0 +1,20 @@
+# textdomain: paleocave
+Limestone=
+Limestone Brick=
+Limestone Stair=
+Limestone Slab=
+Limestone Brick Stair=
+Limestone Brick Slab=
+Limestone Brick Wall=
+Primordial Grass=
+Amber=
+Amber with Mosquito=
+Mosquito in Amber=
+Analyze it in a fossil analyzer to extract DNA.=
+Archaic Vine=
+Tree Star=
+Herbivores love it.=
+Tyrannosaurus Cave Painting=
+Triceratops Cave Painting=
+Brachiosaurus Cave Painting=
+Mosasaurus Cave Painting=

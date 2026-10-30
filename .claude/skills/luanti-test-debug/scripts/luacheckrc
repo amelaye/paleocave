@@ -1,0 +1,12 @@
+-- Configuration luacheck pour le mod paleocave (à copier en .luacheckrc si luacheck est utilisé)
+std = "lua51+luajit"
+max_line_length = 120
+unused_args = false
+
+globals = {"paleocave"}
+
+read_globals = {
+	"core", "minetest", "vector", "ItemStack", "VoxelArea", "PcgRandom", "dump",
+	table = {fields = {"copy"}},
+	"default", "stairs", "walls", "paleotest", "mobkit", "mob_core",
+}

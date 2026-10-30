@@ -1,0 +1,16 @@
+#    Place des créatures de PaleoTest dans les cavernes primordiales au moment où elles sont générées :
+#    elles sont déjà là quand les joueurs arrivent.
+paleocave_dinosaurs (Créatures dans les cavernes primordiales) bool true
+
+#    Multiplicateur du nombre de créatures placées à la génération.
+#    1 = environ 15 créatures par zone de 80 × 80 nœuds de caverne.
+paleocave_dinosaur_density (Densité de créatures) float 1 0 5
+
+#    Fait aussi apparaître de nouvelles créatures autour des joueurs pour repeupler les cavernes vidées par la chasse.
+paleocave_repopulate (Repeuplement autour des joueurs) bool false
+
+#    Repeuplement : nombre maximal de créatures sauvages autour d'un joueur (rayon de 72 nœuds).
+paleocave_max_dinosaurs (Repeuplement : créatures maximum autour d'un joueur) int 14 0 64
+
+#    Repeuplement : délai entre deux tentatives, en secondes.
+paleocave_spawn_interval (Repeuplement : intervalle en secondes) float 30 1 600
