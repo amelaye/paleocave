@@ -128,8 +128,8 @@ core.register_node("paleocave:primordial_grass", {
 })
 
 -- Amber: translucent resin, in blobs hanging from the ceilings. The ambersol
--- at the top of each blob lights the cavern below it like a sun; its light
--- also makes it a heat source that hatches PaleoTest eggs.
+-- at the top of each blob shines like a small sun; its light also makes it a
+-- heat source that hatches PaleoTest eggs.
 
 core.register_node("paleocave:amber", {
 	description = S("Amber"),
@@ -153,7 +153,7 @@ core.register_node("paleocave:ambersol", {
 	sounds = default.node_sound_glass_defaults(),
 })
 
--- Invisible light that the ambersol casts down to the cavern floor.
+-- Invisible light that fills the caverns evenly (fill_light in mapgen.lua).
 core.register_node("paleocave:ambersol_light", {
 	description = S("Ambersol Light"),
 	drawtype = "airlike",

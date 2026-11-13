@@ -16,6 +16,8 @@ local c = {}          -- content ids, resolved on first use
 local carvable = {}   -- content the caverns may hollow out
 local fillable = {}   -- content turned into limestone around the caverns
 local solid = {}      -- walkable content, in the way of a creature's body
+local liquid = {}     -- liquids: "water" or "lava"
+local dungeon = {}    -- blocks of the dungeons of the map generator
 local land_plants, shore_plants, paintings
 
 local function id(name)
@@ -68,6 +70,13 @@ local function init()
 	c.vine_end = id("paleocave:archaic_vine_end")
 	c.trunk = id("paleotest:metasequoia_tree") or id("default:pine_tree")
 	c.leaves = id("paleotest:metasequoia_leaves") or id("default:pine_needles")
+	-- volcano: purple blocks of Everness when the game has them
+	c.lava = id("default:lava_source")
+	c.scoria = id("everness:forsaken_tundra_cobble") or c.gravel -- slopes
+	c.crust = id("everness:mineral_lava_stone") -- cooled lava with glowing veins
+		or id("everness:volcanic_rock_with_magma") or id("default:obsidian") or c.limestone
+	c.basalt = id("everness:mineral_lava_stone_dry") -- bare rock, and inside
+		or id("everness:forsaken_tundra_stone") or id("default:stone") or c.limestone
 
 	-- Hollowing out only ground content keeps the trees, amber and vines that a
 	-- neighbouring mapchunk already placed across the border.
@@ -89,6 +98,32 @@ local function init()
 		local cid = id(name)
 		if cid then
 			carvable[cid], fillable[cid] = true, true
+		end
+	end
+	-- Dungeons of the map generator are not ground content: they would float in
+	-- the caverns. Their blocks are hollowed out and walled up like the rock.
+	local dungeon_names = {"mapgen_cobble", "mapgen_mossycobble", "mapgen_stair_cobble",
+		"mapgen_stair_desert_stone", "mapgen_sandstonebrick", "mapgen_stair_sandstone_block"}
+	for _, biome in pairs(core.registered_biomes) do
+		for _, key in ipairs({"node_dungeon", "node_dungeon_alt", "node_dungeon_stair"}) do
+			dungeon_names[#dungeon_names + 1] = biome[key]
+		end
+	end
+	for _, name in ipairs(dungeon_names) do
+		local cid = id(core.registered_aliases[name] or name)
+		if cid then
+			carvable[cid], fillable[cid], dungeon[cid] = true, true, true
+		end
+	end
+	-- some biomes build their dungeons with blocks of the caverns (Everness:
+	-- the cobble of the volcano): those are never taken for a dungeon
+	for _, cid in pairs(c) do
+		dungeon[cid] = nil
+	end
+	for name, def in pairs(core.registered_nodes) do
+		if def.liquidtype and def.liquidtype ~= "none" then
+			liquid[core.get_content_id(name)] = (core.get_item_group(name, "lava") > 0
+				or name:find("lava")) and "lava" or "water"
 		end
 	end
 	-- ores and PaleoTest fossil blocks stay visible in the limestone
@@ -129,6 +164,8 @@ local data, param2 = {}, {}
 local noise_maps, noise_side
 local values = {}
 local floors, ceilings, tops = {}, {}, {}
+local lavas = {} -- lava surface of the columns in the crater of the volcano
+local rocky = {} -- columns of the cavern or of its limestone walls
 local reserved = {} -- columns taken by a structure
 
 -- Whether a tall decoration may fill a cell: air, or a cell of the mapchunk
@@ -145,7 +182,7 @@ local function free(ctx, vi, x, y, z)
 	end
 	local i = (z - ctx.minp.z) * ctx.side + (x - ctx.minp.x) + 1
 	local f = floors[i]
-	return f and y > f and y > ctx.sea and y <= ceilings[i]
+	return f and y > f and y > ctx.sea and y <= ceilings[i] and not (lavas[i] and y <= lavas[i])
 end
 
 local function grow_tree(ctx, x, y, z, ceiling)
@@ -468,7 +505,7 @@ end
 
 -- Amber blobs hanging from the ceiling, at most one per cell square of the
 -- cavern grid, with an ambersol at the top of each one. Every mapchunk that
--- a blob crosses draws the same one. Returns the blobs.
+-- a blob crosses draws the same one.
 local function hang_amber(ctx, level)
 	local area, minp, maxp, side = ctx.area, ctx.minp, ctx.maxp, ctx.side
 	local blobs = {}
@@ -515,49 +552,50 @@ local function hang_amber(ctx, level)
 			data[area:index(b.x, top, b.z)] = c.ambersol
 		end
 	end
-	return blobs
 end
 
--- Space between the invisible lights, over the floor and down the column
--- under each ambersol.
-local LIGHT_STEP = 6
-
-local function put_light(ctx, x, y, z)
-	if y >= ctx.minp.y and y <= ctx.maxp.y then
-		local vi = ctx.area:index(x, y, z)
-		if data[vi] == c.air then
-			data[vi] = c.light
-		end
-	end
-end
-
--- The ambersol lights everything below it: invisible lights down from each
--- blob, and over the floor of its whole cell square. Placed after the
--- decorations, in the air only.
-local function cast_light(ctx, blobs)
-	local minp, maxp, side, sea = ctx.minp, ctx.maxp, ctx.side, ctx.sea
-	for _, b in ipairs(blobs) do
-		for y = b.ceiling - b.down, math.max(b.f, sea) + 2, -LIGHT_STEP do
-			put_light(ctx, b.x, y, b.z)
-		end
-		local x0, z0 = caves.cell_corner(b.cx, b.cz)
-		for z = math.max(z0 + 3, minp.z), math.min(z0 + caves.CELL - 1, maxp.z) do
-			if (z - z0 - 3) % LIGHT_STEP == 0 then
-				for x = math.max(x0 + 3, minp.x), math.min(x0 + caves.CELL - 1, maxp.x) do
-					if (x - x0 - 3) % LIGHT_STEP == 0 then
-						local i = column_index(minp, side, x, z)
-						local f = floors[i]
-						if f then
-							local y = math.max(f, sea) + 2
-							if y < ceilings[i] then
-								put_light(ctx, x, y, z)
-							end
-						end
+-- Invisible light fills the caverns evenly: in one column out of two along x
+-- and along z, a light 2 nodes above the floor (or the sea), then every 4
+-- nodes up to the ceiling, shifted by 2 from one column to the next. Most of
+-- the air gets light 13 or 14. Placed after the decorations, in the air only.
+local function fill_light(ctx)
+	local area, minp, maxp, side, sea = ctx.area, ctx.minp, ctx.maxp, ctx.side, ctx.sea
+	for z = minp.z + minp.z % 2, maxp.z, 2 do
+		for x = minp.x + minp.x % 2, maxp.x, 2 do
+			local i = column_index(minp, side, x, z)
+			local f = floors[i]
+			if f then
+				local ground = math.max(f, sea)
+				local phase = (math.floor(x / 2) + math.floor(z / 2)) % 2 == 0 and 2 or 4
+				local y0, y1 = math.max(ground + 1, minp.y), math.min(ceilings[i], maxp.y)
+				local vi = area:index(x, y0, z)
+				for y = y0, y1 do
+					local k = y - ground
+					if (k == 2 or (k - phase) % 4 == 0) and data[vi] == c.air then
+						data[vi] = c.light
 					end
+					vi = vi + area.ystride
 				end
 			end
 		end
 	end
+end
+
+-- Volcano: top node, the three layers under it and the rock below, from the
+-- height on the cone (0 at its foot, 1 on the rim). Nil at its foot, where
+-- the floor of the cavern goes on.
+local function volcano_rock(lava, cone, flow, n_flora)
+	if lava or flow or cone >= 0.88 then
+		-- cooled lava: crater, rim and flows
+		return c.crust, c.crust, c.basalt
+	end
+	if cone <= 0.05 + 0.04 * n_flora then
+		return nil
+	end
+	if n_flora > 0.5 then
+		return c.basalt, c.basalt, c.basalt -- bare rock
+	end
+	return c.scoria, c.scoria, c.basalt
 end
 
 local function generate_level(level, minp, maxp, area, rng, spawns, chests)
@@ -565,7 +603,7 @@ local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 	if noise_side ~= side then
 		noise_maps, noise_side = {}, side
 		for name, params in pairs(caves.noises) do
-			noise_maps[name] = get_noise_map(params, {x = side, y = side})
+			noise_maps[name] = get_noise_map(params, {x = side, y = side, z = 1})
 		end
 	end
 	local pos2d = {x = minp.x + level.ox, y = minp.z + level.oz}
@@ -579,18 +617,26 @@ local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 	local n_floor, n_ceiling, n_open = values.floor, values.ceiling, values.open
 	local n_basin, n_flora = values.basin, values.flora
 
-	-- Terrain: hollow out the caverns, fill the seas, lay the floors and turn
-	-- the surrounding rock into limestone.
+	-- Terrain: hollow out the caverns, fill the seas and the crater of the
+	-- volcano, lay the floors and turn the surrounding rock into limestone.
 	local i = 0
 	for z = minp.z, maxp.z do
 		for x = minp.x, maxp.x do
 			i = i + 1
 			local open = caves.open(level, x, z, n_open[i])
-			local f, ceiling = caves.column(sea, n_floor[i], n_ceiling[i], open, n_basin[i])
-			floors[i], ceilings[i] = f or false, ceiling or false
-			reserved[i] = false
-			local top
-			if f then
+			local f, ceiling = caves.column(sea, n_floor[i], n_ceiling[i], open, n_basin[i],
+				caves.lens(level, x, z))
+			local lava, cone, flow
+			f, ceiling, lava, cone, flow = caves.volcano(level, x, z, f, ceiling)
+			floors[i], ceilings[i], lavas[i] = f or false, ceiling or false, lava or false
+			-- top node, the three layers under it, the rock below
+			local top, under, inside
+			if cone then
+				top, under, inside = volcano_rock(lava, cone, flow, n_flora[i])
+			end
+			-- the volcano keeps its slopes bare: no structure, plant or creature
+			reserved[i] = top ~= nil
+			if f and not top then
 				if f < sea then
 					top = n_flora[i] > 0.35 and c.clay or n_flora[i] < -0.45 and c.gravel or c.sand
 				elseif f <= sea + 1 and n_flora[i] < 0.1 then
@@ -598,28 +644,25 @@ local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 				else
 					top = c.grass
 				end
+				under = top == c.grass and c.dirt or c.sand
 			end
+			inside = inside or c.limestone
 			tops[i] = top or false
-			if f or caves.near(open) then
+			rocky[i] = f ~= nil or caves.near(open)
+			if rocky[i] then
 				local vi = area:index(x, y0, z)
 				for y = y0, y1 do
 					local cid = data[vi]
 					if f and y > f and y <= ceiling then
 						if carvable[cid] then
-							data[vi] = y <= sea and c.water or c.air
+							data[vi] = lava and y <= lava and c.lava or y <= sea and c.water or c.air
 						end
 					elseif f and y <= f and y > f - 4 then
 						if carvable[cid] then
-							if y == f then
-								data[vi] = top
-							elseif top == c.grass then
-								data[vi] = c.dirt
-							else
-								data[vi] = c.sand
-							end
+							data[vi] = y == f and top or under
 						end
 					elseif fillable[cid] then
-						data[vi] = c.limestone
+						data[vi] = f and y < f and inside or c.limestone
 					end
 					vi = vi + ystride
 				end
@@ -637,7 +680,7 @@ local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 		structures.build(ctx)
 	end
 
-	local blobs = hang_amber(ctx, level)
+	hang_amber(ctx, level)
 
 	-- Decorations
 	i = 0
@@ -655,34 +698,144 @@ local function generate_level(level, minp, maxp, area, rng, spawns, chests)
 						decorate_seabed(ctx, x, z, f, ceiling)
 					end
 				end
-				if ceiling >= minp.y and ceiling <= maxp.y then
+				if ceiling >= minp.y and ceiling <= maxp.y and not lavas[i] then
 					decorate_ceiling(ctx, x, z, f, ceiling)
 				end
 			end
 		end
 	end
 
-	cast_light(ctx, blobs)
+	fill_light(ctx)
 
 	if creatures.density > 0 then
 		populate(ctx)
 	end
 end
 
-core.register_on_generated(function(minp, maxp, blockseed)
-	if maxp.y < caves.BOTTOM or minp.y > caves.TOP then
-		return
+-- Edges --
+
+-- What a cell of a cavern holds: lava in the crater, water up to the sea,
+-- air above.
+local function hollow_content(y, sea, lava)
+	if lava then
+		return y <= lava and c.lava or c.air
 	end
-	local todo
-	for _, level in ipairs(caves.get_levels()) do
-		if level.ymax >= minp.y and level.ymin <= maxp.y
-				and level.x + level.radius >= minp.x and level.x - level.radius <= maxp.x
-				and level.z + level.radius >= minp.z and level.z - level.radius <= maxp.z then
-			todo = todo or {}
-			todo[#todo + 1] = level
+	return y <= sea and c.water or c.air
+end
+
+-- A mapchunk generated next to a cavern reaches into it: its flooded caves
+-- and its dungeons go on up to a mapblock past its edges, through the air and
+-- the floor of the cavern already there (the engine spares only what is not
+-- ground content). The cells of `buf` (over `area`) between the boxes
+-- minp..maxp and emin..emax get back what the cavern has there: no water
+-- above the sea, no lava out of the crater, no dungeon block, no hole under
+-- the sea floor. `own`: the level was just generated in minp..maxp, so the
+-- floors of its columns are known. Returns whether a cell changed, and
+-- whether liquid had come into the cavern above the sea (see sweep).
+local function repair_edges(level, minp, maxp, emin, emax, area, buf, own)
+	local y0, y1 = math.max(emin.y, level.ymin), math.min(emax.y, level.ymax)
+	if y0 > y1 then
+		return false
+	end
+	local sea, ystride, r2 = level.sea, area.ystride, level.radius * level.radius
+	local side = maxp.x - minp.x + 1
+	local changed, overflow = false, false
+	for z = emin.z, emax.z do
+		for x = emin.x, emax.x do
+			local inner = x >= minp.x and x <= maxp.x and z >= minp.z and z <= maxp.z
+			if (x - level.x) ^ 2 + (z - level.z) ^ 2 < r2 then
+				local known, f, ceiling, lava, walls
+				local vi = area:index(x, y0, z)
+				for y = y0, y1 do
+					if not inner or y < minp.y or y > maxp.y then
+						local cid = buf[vi]
+						local kind = liquid[cid]
+						-- water under the sea level cannot leak: it stays
+						if not (kind == "water" and y <= sea)
+								and (kind or dungeon[cid] or (cid == c.air and y <= sea)) then
+							if not known then
+								known = true
+								if inner and own then
+									local i = column_index(minp, side, x, z)
+									f, ceiling, lava, walls = floors[i], ceilings[i], lavas[i], rocky[i]
+								else
+									local _
+									f, ceiling, lava, _, walls = caves.column_model(level, x, z)
+								end
+							end
+							local new
+							if f and y > f and y <= ceiling then
+								local want = hollow_content(y, sea, lava)
+								if cid ~= c.air and want ~= cid
+										and not (kind and kind == liquid[want]) then
+									new = want
+								end
+							elseif walls and (cid ~= c.air or (f and f < sea and y <= f)) then
+								new = c.limestone
+							end
+							if new then
+								buf[vi], changed = new, true
+								overflow = overflow or (kind ~= nil and y > sea)
+							end
+						end
+					end
+					vi = vi + ystride
+				end
+			end
 		end
 	end
-	if not todo then
+	return changed, overflow
+end
+
+-- Luanti writes a mapchunk into the map before calling on_generated, and its
+-- liquids may flow in between: the water of a flooded cave that came into a
+-- cavern then already falls below the area of the mapchunk, where nothing
+-- repairs it. So when liquid came in, the same repair also runs down to the
+-- bottom of the level under that area, and SPREAD nodes around it.
+local SPREAD = 8
+local swept = {}
+
+local function sweep(level, emin, emax)
+	local p1 = {x = emin.x - SPREAD, y = level.ymin, z = emin.z - SPREAD}
+	local p2 = {x = emax.x + SPREAD, y = math.min(emax.y, level.ymax), z = emax.z + SPREAD}
+	if p1.y > p2.y then
+		return
+	end
+	local vm = core.get_voxel_manip()
+	local e1, e2 = vm:read_from_map(p1, p2)
+	swept = vm:get_data(swept)
+	-- the area of the mapchunk itself was repaired already
+	if repair_edges(level, emin, emax, p1, p2, VoxelArea:new({MinEdge = e1, MaxEdge = e2}), swept, false) then
+		vm:set_data(swept)
+		vm:write_to_map(false)
+	end
+end
+
+-- how far a mapchunk's caves and dungeons reach past its edges
+local SHELL = 16
+
+local function crosses(level, minp, maxp, margin)
+	return level.ymax >= minp.y - margin and level.ymin <= maxp.y + margin
+		and level.x + level.radius >= minp.x - margin and level.x - level.radius <= maxp.x + margin
+		and level.z + level.radius >= minp.z - margin and level.z - level.radius <= maxp.z + margin
+end
+
+core.register_on_generated(function(minp, maxp, blockseed)
+	if maxp.y + SHELL < caves.BOTTOM or minp.y - SHELL > caves.TOP then
+		return
+	end
+	local near, todo
+	for _, level in ipairs(caves.get_levels()) do
+		if crosses(level, minp, maxp, SHELL) then
+			near = near or {}
+			near[#near + 1] = level
+			if crosses(level, minp, maxp, 0) then
+				todo = todo or {}
+				todo[#todo + 1] = level
+			end
+		end
+	end
+	if not near then
 		return
 	end
 	if not c.air then
@@ -692,17 +845,44 @@ core.register_on_generated(function(minp, maxp, blockseed)
 	local vm, emin, emax = core.get_mapgen_object("voxelmanip")
 	local area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 	data = vm:get_data(data)
-	param2 = vm:get_param2_data(param2)
-	local rng = PcgRandom(blockseed)
+	local own, changed = {}, false
 	local spawns, chests = {}, {}
-	for _, level in ipairs(todo) do
-		generate_level(level, minp, maxp, area, rng, spawns, chests)
+	if todo then
+		param2 = vm:get_param2_data(param2)
+		local rng = PcgRandom(blockseed)
+		for _, level in ipairs(todo) do
+			generate_level(level, minp, maxp, area, rng, spawns, chests)
+			own[level] = true
+		end
+	end
+	local overflows = {}
+	for _, level in ipairs(near) do
+		local fixed, overflow = repair_edges(level, minp, maxp, emin, emax, area, data, own[level])
+		changed = changed or fixed
+		if overflow then
+			overflows[#overflows + 1] = level
+		end
+	end
+	if not todo then
+		if changed then
+			vm:set_data(data)
+			vm:calc_lighting()
+			vm:write_to_map()
+			vm:update_liquids()
+		end
+		for _, level in ipairs(overflows) do
+			sweep(level, emin, emax)
+		end
+		return
 	end
 	vm:set_data(data)
 	vm:set_param2_data(param2)
 	vm:calc_lighting()
 	vm:write_to_map()
 	vm:update_liquids()
+	for _, level in ipairs(overflows) do
+		sweep(level, emin, emax)
+	end
 	if #chests > 0 then
 		structures.fill_chests(chests)
 	end
