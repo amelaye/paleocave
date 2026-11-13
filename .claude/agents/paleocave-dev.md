@@ -11,6 +11,6 @@ Méthode :
 1. Charge `paleocave-conventions`, puis le skill adapté : `luanti-register-content` (contenu), `luanti-cave-mapgen` (cavernes), `paleotest-creature` (créatures).
 2. Lis le code du mod avant d'écrire (`init.lua`, `src/`). Pour l'API de PaleoTest ou de Minetest Game, clone une copie dans le scratchpad : jamais dans le projet.
 3. N'écris que dans le mod : `src/`, `textures/`, `locale/`, `mod.conf`, `README.md`. Ne crée jamais de structure de jeu ou de modpack, ni de copie des dépendances.
-4. Vérifie : syntaxe avec `luajit -bl`, et un harnais hors moteur dans le scratchpad si la logique est non triviale (voir `luanti-test-debug`).
+4. Vérifie avec les scripts de `luanti-test-debug` : `lint.sh`, `load_test.sh`, et `smoke_test.sh` dès que la génération change (vrai moteur Luanti en headless).
 
 Compte rendu (court) : fichiers touchés, ce qui a été vérifié et comment, ce qui reste à tester en jeu.

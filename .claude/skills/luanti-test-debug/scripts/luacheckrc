@@ -1,12 +1,27 @@
--- Configuration luacheck pour le mod paleocave (à copier en .luacheckrc si luacheck est utilisé)
-std = "lua51+luajit"
+-- Config luacheck du mod paleocave, utilisée par lint.sh :
+--   luacheck --config .claude/skills/luanti-test-debug/scripts/luacheckrc .
+-- Garder les globales en accord avec READ_OK dans lint.sh (fallback sans luacheck).
+std = "luajit"
 max_line_length = 120
 unused_args = false
+exclude_files = {".claude/**"}
 
+-- Seule globale écrite par le mod.
 globals = {"paleocave"}
 
 read_globals = {
-	"core", "minetest", "vector", "ItemStack", "VoxelArea", "PcgRandom", "dump",
-	table = {fields = {"copy"}},
-	"default", "stairs", "walls", "paleotest", "mobkit", "mob_core",
+	-- Moteur Luanti
+	"core", "minetest", "vector", "ItemStack", "VoxelArea", "VoxelManip",
+	"PseudoRandom", "PcgRandom", "SecureRandom", "PerlinNoise", "PerlinNoiseMap",
+	"ValueNoise", "ValueNoiseMap", "Settings", "AreaStore", "Raycast",
+	"dump", "dump2", "DIR_DELIM", "INIT", "PLATFORM",
+	table = {fields = {"copy", "copy_with_metatables", "indexof", "keyof", "insert_all",
+		"key_value_swap", "shuffle"}},
+	string = {fields = {"split", "trim"}},
+	math = {fields = {"hypot", "sign", "factorial", "round"}},
+	-- Minetest Game
+	"default", "stairs", "walls", "bones", "doors", "screwdriver", "creative", "dye",
+	"bucket", "xpanes", "beds", "fire", "tnt", "player_api",
+	-- Jeu existant : PaleoTest et ses bibliothèques, mods optionnels
+	"paleotest", "mobkit", "mob_core", "stairsplus", "moreblocks", "everness",
 }

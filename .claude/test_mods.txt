@@ -1,0 +1,13 @@
+# Mods activés en plus de paleocave par les scripts de test (un nom de mod par ligne, # pour commenter).
+# Ils doivent être installés dans ~/Library/Application Support/minetest/mods/, ou passés par chemin
+# sans installation : EXTRA_WORLDMODS=chemin1:chemin2 <script> (ils restent alors listés ici).
+# Les mods de Minetest Game (default, stairs, walls, bones…) sont chargés automatiquement.
+
+# Dépendances de paleocave (mod.conf) et de PaleoTest : obligatoires.
+paleotest
+mob_core
+mobkit
+
+# Mods optionnels du jeu existant, à décommenter une fois installés.
+# moreblocks
+# everness
